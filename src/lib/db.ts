@@ -2,7 +2,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 
-const DB_PATH = path.join(process.cwd(), "farmart.db");
+const DB_PATH = path.join(process.cwd(), "data", "farmart.db");
 
 let _db: Database.Database | null = null;
 
