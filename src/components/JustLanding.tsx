@@ -1,4 +1,5 @@
-import ProductCard, { type Product } from "./ProductCard";
+import { apiBase } from "@/lib/api-url";
+import ProductCard from "./ProductCard";
 
 const tabs = [
   "All",
@@ -9,65 +10,36 @@ const tabs = [
   "Milks & Dairies",
 ];
 
-const products: Product[] = [
-  {
-    badge: "New",
-    icon: "🦐",
-    iconBg: "bg-orange-100",
-    brand: "Ocean Farm",
-    title: "Jumbo Frozen Shrimp Pack",
-    rating: 5,
-    reviews: 6,
-    price: 14.5,
-  },
-  {
-    icon: "🥓",
-    iconBg: "bg-rose-100",
-    brand: "MeatFarm",
-    title: "Smoked Bacon Strips 500g",
-    rating: 4,
-    reviews: 12,
-    price: 7.4,
-  },
-  {
-    icon: "🍶",
-    iconBg: "bg-sky-100",
-    brand: "Farmart",
-    title: "Cold Pressed Olive Oil 1L",
-    rating: 5,
-    reviews: 22,
-    price: 11.2,
-  },
-  {
-    icon: "🍯",
-    iconBg: "bg-yellow-100",
-    brand: "Brand Name",
-    title: "Wildflower Honey Jar 350g",
-    rating: 4,
-    reviews: 17,
-    price: 6.75,
-  },
-  {
-    icon: "📦",
-    iconBg: "bg-amber-100",
-    brand: "Farmart",
-    title: "Breakfast Cereal Box 400g",
-    rating: 4,
-    reviews: 9,
-    price: 3.95,
-  },
-  {
-    icon: "🧊",
-    iconBg: "bg-teal-100",
-    brand: "Brand Name",
-    title: "Sparkling Water Pack x6",
-    rating: 4,
-    reviews: 13,
-    price: 4.6,
-  },
-];
+export default async function JustLanding() {
+  const res = await fetch(`${apiBase()}/api/products/just-landing`, {
+    cache: "no-store",
+  });
+  const json = await res.json();
+  const rows: {
+    id: string;
+    badge: string | null;
+    icon: string;
+    icon_bg: string;
+    brand: string;
+    title: string;
+    rating: number;
+    reviews: number;
+    price: number;
+    original_price: number | null;
+  }[] = json.data ?? [];
+  const products = rows.map((p) => ({
+    id: p.id,
+    badge: p.badge ?? undefined,
+    icon: p.icon,
+    iconBg: p.icon_bg,
+    brand: p.brand,
+    title: p.title,
+    rating: p.rating,
+    reviews: p.reviews,
+    price: p.price,
+    originalPrice: p.original_price ?? undefined,
+  }));
 
-export default function JustLanding() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-wrap items-center gap-4">
@@ -87,7 +59,7 @@ export default function JustLanding() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {products.map((product) => (
-          <ProductCard key={product.title} product={product} />
+          <ProductCard key={product.id} product={product} />
         ))}
       </div>
     </section>

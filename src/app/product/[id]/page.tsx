@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Heart, Truck } from "lucide-react";
+import { Truck } from "lucide-react";
 import Header from "@/components/Header";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import ProductGallery from "@/components/ProductGallery";
 import Rating from "@/components/Rating";
-import QuantitySelector from "@/components/QuantitySelector";
+import ProductActions from "@/components/ProductActions";
 import ProductCard from "@/components/ProductCard";
-import { getProductById, products } from "@/data/products";
+import { getDb } from "@/lib/db";
+import { apiBase } from "@/lib/api-url";
+import type { Product } from "@/components/ProductCard";
 
 export function generateStaticParams() {
-  return products.map((product) => ({ id: product.id }));
+  const db = getDb();
+  const rows = db.prepare("SELECT id FROM products").all() as { id: string }[];
+  return rows.map((r) => ({ id: r.id }));
 }
 
 export async function generateMetadata({
@@ -19,11 +23,14 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const product = getProductById(id);
-  if (!product) return {};
+  const res = await fetch(`${apiBase()}/api/products/${id}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return {};
+  const product = await res.json();
   return {
     title: `${product.title} — Farmart`,
-    description: product.description,
+    description: product.description ?? undefined,
   };
 }
 
@@ -37,8 +44,43 @@ export default async function ProductDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const product = getProductById(id);
-  if (!product) notFound();
+  const res = await fetch(`${apiBase()}/api/products/${id}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) notFound();
+  const product = await res.json();
+
+  const rawImages: { icon: string; icon_bg: string }[] = product.images ?? [];
+  const images =
+    rawImages.length > 0
+      ? rawImages.map((img) => ({ icon: img.icon, iconBg: img.icon_bg }))
+      : [{ icon: product.icon, iconBg: product.icon_bg }];
+
+  const related: Product[] = (product.related ?? []).map(
+    (p: {
+      id: string;
+      badge: string | null;
+      icon: string;
+      icon_bg: string;
+      brand: string;
+      title: string;
+      rating: number;
+      reviews: number;
+      price: number;
+      original_price: number | null;
+    }) => ({
+      id: p.id,
+      badge: p.badge ?? undefined,
+      icon: p.icon,
+      iconBg: p.icon_bg,
+      brand: p.brand,
+      title: p.title,
+      rating: p.rating,
+      reviews: p.reviews,
+      price: p.price,
+      originalPrice: p.original_price ?? undefined,
+    })
+  );
 
   return (
     <div className="flex flex-1 flex-col bg-white">
@@ -48,14 +90,14 @@ export default async function ProductDetailPage({
         <Breadcrumbs
           items={[
             { label: "Home", href: "/" },
-            { label: product.category, href: "/" },
+            { label: product.category_slug, href: "/" },
             { label: product.title },
           ]}
         />
       </div>
 
       <section className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-10 px-4 pb-12 sm:px-6 lg:grid-cols-2 lg:px-8">
-        <ProductGallery images={product.images} />
+        <ProductGallery images={images} />
 
         <div className="flex flex-col">
           <div className="text-xs text-zinc-400">{product.brand}</div>
@@ -71,9 +113,9 @@ export default async function ProductDetailPage({
             <span className="text-3xl font-extrabold text-brand">
               {formatPrice(product.price)}
             </span>
-            {product.originalPrice && (
+            {product.original_price && (
               <span className="text-base text-zinc-400 line-through">
-                {formatPrice(product.originalPrice)}
+                {formatPrice(product.original_price)}
               </span>
             )}
             {product.badge && (
@@ -96,33 +138,24 @@ export default async function ProductDetailPage({
             Free delivery on orders over $50
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center gap-4">
-            <QuantitySelector />
-            <button className="flex-1 rounded-md bg-brand px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-brand-dark sm:flex-none">
-              Add To Cart
-            </button>
-            <button
-              aria-label="Add to wishlist"
-              className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-400 ring-1 ring-zinc-200 hover:text-brand"
-            >
-              <Heart size={18} />
-            </button>
-          </div>
+          <ProductActions productId={id} />
         </div>
       </section>
 
-      <section className="bg-zinc-50 py-8">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-foreground">You Might Also Like</h2>
+      {related.length > 0 && (
+        <section className="bg-zinc-50 py-8">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-foreground">You Might Also Like</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {related.map((item) => (
+                <ProductCard key={item.id ?? item.title} product={item} />
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {product.related.map((item) => (
-              <ProductCard key={item.title} product={item} />
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }
