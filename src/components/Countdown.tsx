@@ -14,8 +14,10 @@ function pad(value: number) {
   return value.toString().padStart(2, "0");
 }
 
-export default function Countdown() {
-  const [target] = useState(() => Date.now() + 5 * 60 * 60 * 1000 + 20 * 60 * 1000);
+export default function Countdown({ endsAt }: { endsAt?: number }) {
+  const [target] = useState(
+    () => endsAt ?? Date.now() + 5 * 60 * 60 * 1000 + 20 * 60 * 1000
+  );
   const [remaining, setRemaining] = useState(() => getRemaining(target));
 
   useEffect(() => {

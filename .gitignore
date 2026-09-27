@@ -40,5 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# local database (auto-created and seeded on first run)
+/data/farmart.db
+/data/farmart.db-shm
+/data/farmart.db-wal
+
 *storybook.log
 storybook-static

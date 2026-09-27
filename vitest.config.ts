@@ -31,6 +31,18 @@ export default defineConfig({
           },
         },
       },
+      {
+        test: {
+          name: 'unit',
+          environment: 'node',
+          include: ['src/**/*.test.ts'],
+        },
+        resolve: {
+          alias: {
+            '@': path.join(dirname, 'src'),
+          },
+        },
+      },
     ],
   },
 });

@@ -1,17 +1,13 @@
+import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { apiBase } from "@/lib/api-url";
 
-const categories = [
-  { label: "Fruits & Vegetables", icon: "🍊" },
-  { label: "Breads & Sweets", icon: "🍞", active: true },
-  { label: "Frozen Seafoods", icon: "🦐" },
-  { label: "Raw Meats", icon: "🥩" },
-  { label: "Wines & Alcohol Drinks", icon: "🍷" },
-  { label: "Coffees and Teas", icon: "☕" },
-  { label: "Milks and Dairies", icon: "🥛" },
-  { label: "Pet Foods", icon: "🐾" },
-];
+export default async function CategoryGrid() {
+  const res = await fetch(`${apiBase()}/api/categories`, { cache: "no-store" });
+  const json = await res.json();
+  const categories: { slug: string; label: string; icon: string }[] =
+    json.data ?? [];
 
-export default function CategoryGrid() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6 flex items-center justify-between">
@@ -39,20 +35,16 @@ export default function CategoryGrid() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
         {categories.map((category) => (
-          <a
-            key={category.label}
-            href="#"
-            className={`flex flex-col items-center gap-3 rounded-lg border px-3 py-6 text-center transition-colors ${
-              category.active
-                ? "border-transparent bg-white shadow-md ring-1 ring-black/5"
-                : "border-transparent bg-zinc-50 hover:bg-white hover:shadow-md hover:ring-1 hover:ring-black/5"
-            }`}
+          <Link
+            key={category.slug}
+            href={`/?category=${category.slug}#best-seller`}
+            className="flex flex-col items-center gap-3 rounded-lg border border-transparent bg-zinc-50 px-3 py-6 text-center transition-colors hover:bg-white hover:shadow-md hover:ring-1 hover:ring-black/5"
           >
             <span className="text-4xl">{category.icon}</span>
             <span className="text-xs font-medium leading-tight text-zinc-600">
               {category.label}
             </span>
-          </a>
+          </Link>
         ))}
       </div>
     </section>

@@ -1,97 +1,112 @@
-import ProductCard, { type Product } from "./ProductCard";
+import Link from "next/link";
+import { apiBase } from "@/lib/api-url";
+import ProductCard from "./ProductCard";
 
 const tabs = [
-  "All",
-  "Fruits & Vegetables",
-  "Frozen Seafoods",
-  "Raw Meats",
-  "Coffees & Teas",
-  "Milks & Dairies",
+  { label: "All", slug: "all" },
+  { label: "Fruits & Vegetables", slug: "fruits-vegetables" },
+  { label: "Frozen Seafoods", slug: "frozen-seafoods" },
+  { label: "Raw Meats", slug: "raw-meats" },
+  { label: "Coffees & Teas", slug: "coffees-teas" },
+  { label: "Milks & Dairies", slug: "milks-dairies" },
 ];
 
-const products: Product[] = [
-  {
-    icon: "🍌",
-    iconBg: "bg-yellow-100",
-    brand: "Brand Name",
-    title: "Aloe Sweet Bananas",
-    rating: 4,
-    reviews: 21,
-    price: 18.29,
-  },
-  {
-    badge: "Sale 20%",
-    icon: "🥩",
-    iconBg: "bg-rose-100",
-    brand: "MeatFarm",
-    title: "British Beef Mince (Specially Fed)",
-    rating: 5,
-    reviews: 33,
-    price: 9.99,
-    originalPrice: 12.5,
-  },
-  {
-    icon: "🍋",
-    iconBg: "bg-lime-100",
-    brand: "Brand Name",
-    title: "10 Yellow Watermelons",
-    rating: 4,
-    reviews: 14,
-    price: 5.9,
-  },
-  {
-    icon: "🌾",
-    iconBg: "bg-amber-100",
-    brand: "Farmart",
-    title: "Organic Foods & Pastry Sifted",
-    rating: 4,
-    reviews: 8,
-    price: 3.29,
-  },
-  {
-    icon: "🍪",
-    iconBg: "bg-orange-100",
-    brand: "Farmart",
-    title: "Oatmeal Cookies",
-    rating: 5,
-    reviews: 19,
-    price: 4.28,
-  },
-  {
-    icon: "🥫",
-    iconBg: "bg-sky-100",
-    brand: "Brand Name",
-    title: "Canned Royal White Tofu",
-    rating: 4,
-    reviews: 11,
-    price: 2.15,
-  },
-];
+export default async function BestSeller({
+  activeCategory,
+  q,
+}: {
+  activeCategory?: string;
+  q?: string;
+}) {
+  let rows: {
+    id: string;
+    badge: string | null;
+    icon: string;
+    icon_bg: string;
+    brand: string;
+    title: string;
+    rating: number;
+    reviews: number;
+    price: number;
+    original_price: number | null;
+    sold_percent?: number | null;
+    sold_text?: string | null;
+  }[];
 
-export default function BestSeller() {
+  if (q) {
+    const url = new URL(`${apiBase()}/api/products`);
+    url.searchParams.set("q", q);
+    url.searchParams.set("limit", "12");
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    const json = await res.json();
+    rows = json.data ?? [];
+  } else {
+    const url = new URL(`${apiBase()}/api/products/best-sellers`);
+    if (activeCategory && activeCategory !== "all") {
+      url.searchParams.set("category", activeCategory);
+    }
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    const json = await res.json();
+    rows = json.data ?? [];
+  }
+
+  const products = rows.map((p) => ({
+    id: p.id,
+    badge: p.badge ?? undefined,
+    icon: p.icon,
+    iconBg: p.icon_bg,
+    brand: p.brand,
+    title: p.title,
+    rating: p.rating,
+    reviews: p.reviews,
+    price: p.price,
+    originalPrice: p.original_price ?? undefined,
+  }));
+
+  const sectionTitle = q ? `Search results for "${q}"` : "Best Seller";
+
   return (
-    <section className="bg-zinc-50 py-8">
+    <section id="best-seller" className="bg-zinc-50 py-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-wrap items-center gap-4">
-          <h2 className="text-xl font-bold text-foreground">Best Seller</h2>
-          <nav className="flex flex-wrap items-center gap-4 text-sm text-zinc-400">
-            {tabs.map((tab, i) => (
-              <a
-                key={tab}
-                href="#"
-                className={i === 0 ? "font-semibold text-brand" : "hover:text-brand"}
-              >
-                {tab}
-              </a>
-            ))}
-          </nav>
+          <h2 className="text-xl font-bold text-foreground">{sectionTitle}</h2>
+
+          {!q && (
+            <nav className="flex flex-wrap items-center gap-4 text-sm text-zinc-400">
+              {tabs.map((tab) => {
+                const isActive =
+                  tab.slug === "all"
+                    ? !activeCategory || activeCategory === "all"
+                    : activeCategory === tab.slug;
+                return (
+                  <Link
+                    key={tab.slug}
+                    href={tab.slug === "all" ? "/#best-seller" : `/?category=${tab.slug}#best-seller`}
+                    className={isActive ? "font-semibold text-brand" : "hover:text-brand"}
+                  >
+                    {tab.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+
+          {q && (
+            <Link href="/" className="text-sm text-zinc-400 hover:text-brand">
+              ← Clear search
+            </Link>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          {products.map((product) => (
-            <ProductCard key={product.title} product={product} />
-          ))}
-        </div>
+        {products.length === 0 ? (
+          <p className="py-8 text-center text-sm text-zinc-400">No products found.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

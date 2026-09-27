@@ -1,6 +1,9 @@
+import Link from "next/link";
 import Rating from "./Rating";
+import AddToCartButton from "./AddToCartButton";
 
 export type Product = {
+  id?: string;
   badge?: string;
   icon: string;
   iconBg: string;
@@ -20,6 +23,7 @@ function formatPrice(value: number) {
 
 export default function ProductCard({ product }: { product: Product }) {
   const {
+    id,
     badge,
     icon,
     iconBg,
@@ -33,8 +37,8 @@ export default function ProductCard({ product }: { product: Product }) {
     soldText,
   } = product;
 
-  return (
-    <div className="relative flex h-full flex-col rounded-lg border border-zinc-100 p-4 transition-shadow hover:shadow-md">
+  const inner = (
+    <>
       {badge && (
         <span className="absolute left-3 top-3 rounded bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
           {badge}
@@ -79,9 +83,21 @@ export default function ProductCard({ product }: { product: Product }) {
         )}
       </div>
 
-      <button className="mt-4 rounded-md bg-brand py-2 text-sm font-semibold text-foreground transition-colors hover:bg-brand-dark">
-        Add To Cart
-      </button>
-    </div>
+      <AddToCartButton productId={id} />
+    </>
   );
+
+  const className =
+    "relative flex h-full flex-col rounded-lg border border-zinc-100 p-4 transition-shadow hover:shadow-md";
+
+  if (id) {
+    return (
+      <div className={className}>
+        <Link href={`/product/${id}`} className="absolute inset-0 z-0" aria-label={title} />
+        {inner}
+      </div>
+    );
+  }
+
+  return <div className={className}>{inner}</div>;
 }

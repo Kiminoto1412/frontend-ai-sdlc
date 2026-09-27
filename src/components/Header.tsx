@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { Search, Phone, User, Heart, ShoppingCart, ChevronDown, Menu, Eye } from "lucide-react";
+import { Phone, User, Heart, ShoppingCart, ChevronDown, Menu, Eye, Database } from "lucide-react";
+import { getSessionId } from "@/lib/session";
+import { getCartSummary } from "@/lib/db";
+import SearchBar from "./SearchBar";
 
 const navLinks = [
   { label: "Deals Today", hasDropdown: false },
@@ -12,7 +15,12 @@ const navLinks = [
   { label: "Pages", hasDropdown: true },
 ];
 
-export default function Header() {
+export default async function Header() {
+  const sessionId = await getSessionId();
+  const { itemCount, subtotal } = sessionId
+    ? getCartSummary(sessionId)
+    : { itemCount: 0, subtotal: 0 };
+
   return (
     <header className="w-full border-b border-black/5">
       {/* Top bar */}
@@ -27,24 +35,7 @@ export default function Header() {
         </Link>
 
         <div className="hidden flex-1 items-center md:flex">
-          <div className="flex w-full items-center rounded-lg bg-zinc-100 pr-2">
-            <button className="flex shrink-0 items-center gap-1 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-700 hover:text-brand">
-              All Categories
-              <ChevronDown size={14} />
-            </button>
-            <span className="h-5 w-px shrink-0 bg-zinc-300" />
-            <input
-              type="text"
-              placeholder="Search anything for..."
-              className="flex-1 bg-transparent px-4 py-3 text-sm outline-none placeholder:text-zinc-400"
-            />
-            <button
-              aria-label="Search"
-              className="flex shrink-0 items-center justify-center px-3 text-zinc-500 transition-colors hover:text-brand"
-            >
-              <Search size={18} />
-            </button>
-          </div>
+          <SearchBar />
         </div>
 
         <div className="ml-auto flex items-center gap-5 shrink-0">
@@ -62,21 +53,26 @@ export default function Header() {
           <button aria-label="Wishlist" className="text-zinc-600 hover:text-brand">
             <Heart size={22} />
           </button>
-          <button
+          <Link
+            href="/cart"
             aria-label="Cart"
             className="flex items-center gap-2 text-zinc-600 hover:text-brand"
           >
             <span className="relative">
               <ShoppingCart size={22} />
-              <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-foreground">
-                2
-              </span>
+              {itemCount > 0 && (
+                <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-foreground">
+                  {itemCount}
+                </span>
+              )}
             </span>
             <span className="hidden text-left leading-tight sm:block">
               <span className="block text-xs text-zinc-400">Your Cart</span>
-              <span className="block text-sm font-semibold">$2,480.59</span>
+              <span className="block text-sm font-semibold">
+                ${subtotal.toFixed(2)}
+              </span>
             </span>
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -101,13 +97,22 @@ export default function Header() {
             ))}
           </nav>
 
-          <a
-            href="#"
-            className="ml-auto flex items-center gap-1 py-3 text-sm text-zinc-500 hover:text-brand"
-          >
-            <Eye size={14} />
-            Recently Viewed
-          </a>
+          <div className="ml-auto flex items-center gap-4">
+            <Link
+              href="/schema"
+              className="flex items-center gap-1 py-3 text-sm text-zinc-500 hover:text-brand"
+            >
+              <Database size={14} />
+              DB Schema
+            </Link>
+            <a
+              href="#"
+              className="flex items-center gap-1 py-3 text-sm text-zinc-500 hover:text-brand"
+            >
+              <Eye size={14} />
+              Recently Viewed
+            </a>
+          </div>
         </div>
       </div>
     </header>

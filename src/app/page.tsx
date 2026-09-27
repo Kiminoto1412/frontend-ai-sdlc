@@ -6,7 +6,13 @@ import TopSaver from "@/components/TopSaver";
 import BestSeller from "@/components/BestSeller";
 import JustLanding from "@/components/JustLanding";
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string; q?: string }>;
+}) {
+  const { category, q } = await searchParams;
+
   return (
     <div className="flex flex-1 flex-col bg-white">
       <Header />
@@ -14,7 +20,7 @@ export default function Home() {
       <CategoryGrid />
       <FeaturedBrands />
       <TopSaver />
-      <BestSeller />
+      <BestSeller activeCategory={category} q={q} />
       <JustLanding />
     </div>
   );
