@@ -26,14 +26,29 @@ import * as session from "@/lib/session";
 
 const cartItems = [
   {
-    id: 1,
-    session_id: "sess-test-123",
-    product_id: "p1",
+    product: {
+      id: "p1",
+      badge: null,
+      brand: "FarmBrand",
+      title: "Fresh Apple",
+      category_slug: "fruits-vegetables",
+      unit: "kg",
+      price: 1.99,
+      original_price: null,
+      rating: 4.5,
+      reviews: 100,
+      description: "",
+      sold_percent: null,
+      sold_text: null,
+      is_best_seller: 1,
+      is_top_saver: 0,
+      is_just_landing: 0,
+      sale_ends_at: null,
+      icon: "🍎",
+      icon_bg: "#fff",
+      created_at: "2024-01-01",
+    },
     quantity: 2,
-    title: "Fresh Apple",
-    price: 1.99,
-    icon: "🍎",
-    icon_bg: "#fff",
   },
 ];
 

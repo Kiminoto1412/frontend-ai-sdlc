@@ -49,7 +49,7 @@ vi.mock("@/lib/db", () => ({
 import * as db from "@/lib/db";
 
 beforeEach(() => {
-  vi.mocked(db.queryProducts).mockReturnValue({ data: [mockProduct], total: 1 } as ReturnType<typeof db.queryProducts>);
+  vi.mocked(db.queryProducts).mockReturnValue({ data: [mockProduct], pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } } as ReturnType<typeof db.queryProducts>);
   vi.mocked(db.queryBestSellers).mockReturnValue([mockProduct] as ReturnType<typeof db.queryBestSellers>);
   vi.mocked(db.queryTopSavers).mockReturnValue({ saleEndsAt: mockProduct.sale_ends_at, data: [mockProduct] } as ReturnType<typeof db.queryTopSavers>);
   vi.mocked(db.queryJustLanding).mockReturnValue([mockProduct] as ReturnType<typeof db.queryJustLanding>);
