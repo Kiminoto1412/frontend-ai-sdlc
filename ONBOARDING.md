@@ -100,7 +100,9 @@ Seed runs once when the `products` table is empty. It inserts the following data
 
 Interactive docs at **[http://localhost:3000/docs](http://localhost:3000/docs)** (Swagger UI).
 
-ER diagram at **[http://localhost:3000/mermaid.html](http://localhost:3000/mermaid.html)**.
+ER diagram at **[http://localhost:3000/mermaid.html](http://localhost:3000/mermaid.html)** — source at `docs/er-diagram.md`.
+
+> **Rule:** whenever a table or column changes, update `docs/er-diagram.md`, `public/mermaid.html`, and `.claude/skills/database.md` together. Use the `/database` skill in Claude Code to get the full checklist.
 
 ---
 
@@ -143,7 +145,7 @@ rm data/farmart.db data/farmart.db-shm data/farmart.db-wal
 
 | Path | Purpose |
 |---|---|
-| `src/lib/db.ts` | SQLite singleton, schema, seed, all query helpers |
+| `src/lib/db.ts` | SQLite singleton, schema, seed, all query helpers — **update schema + types + seed here first** |
 | `src/lib/auth.ts` | `signToken`, `verifyToken`, `extractToken` |
 | `src/lib/session.ts` | Cart session cookie helpers |
 | `src/lib/api-url.ts` | `apiBase()` for server-component fetch calls |
