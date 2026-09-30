@@ -39,4 +39,4 @@ npm run lint              # ESLint
 - **JWT** via `jose` · **bcryptjs** for password hashing
 - **Vitest** — Node project (API tests) + Storybook project (component tests)
 
-See [`CLAUDE.md`](./CLAUDE.md) for full architecture notes and [`ONBOARDING.md`](./ONBOARDING.md) for seed data reference.
+See [`AGENTS.md`](./AGENTS.md) for full architecture notes and [`ONBOARDING.md`](./ONBOARDING.md) for seed data reference.

@@ -111,7 +111,7 @@ After making the schema change in `src/lib/db.ts`:
 1. **Update `docs/er-diagram.md`** — add the new table/column to the `erDiagram` block and the Tables summary.
 2. **Update `public/mermaid.html`** — find the `const diagram = \`erDiagram` string and apply the same additions so the live page at `/mermaid.html` stays in sync.
 3. **Update this skill file** (`.claude/skills/database.md`) — add the new table to the ER diagram block and Table Reference above.
-4. **Update `CLAUDE.md`** if the change affects architecture notes (e.g. a new auth table, a new session mechanism).
+4. **Update `AGENTS.md`** (the Backend section) if the change affects architecture notes — e.g. a new auth table or a new session mechanism. `CLAUDE.md` is only a pointer to `AGENTS.md`; never write rules into it.
 5. **Run `npm run db:reset`** then `npm run dev` so the new schema is applied to a fresh DB.
 
 ### "Check if the diagram is up to date"
@@ -135,4 +135,4 @@ When ANY table or column is added, removed, or renamed, update ALL of:
 - [ ] `docs/er-diagram.md` — erDiagram block + Tables table
 - [ ] `public/mermaid.html` — `const diagram` string
 - [ ] `.claude/skills/database.md` (this file) — ER diagram block + Table Reference
-- [ ] `CLAUDE.md` — Backend section if architecture changes
+- [ ] `AGENTS.md` — Backend section if architecture changes

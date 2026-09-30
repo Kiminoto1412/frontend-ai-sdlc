@@ -50,12 +50,13 @@ prods.forEach(p => console.log(
 
 ### "Reset the database" / "Re-seed" / "Start fresh"
 
-Warn the user that this will delete all data (including users and cart items), then — if confirmed — run:
+Warn the user that this will delete all data (including registered users and cart items), then — if confirmed — run:
 
 ```bash
-cd /Users/paruj.lap/Desktop/learn/frontend-ai-sdlc
-rm -f data/farmart.db data/farmart.db-shm data/farmart.db-wal
+npm run db:reset
 ```
+
+That script deletes `data/farmart.db` plus its `-shm`/`-wal` siblings through Node. Use it rather than `rm`: the project's `PreToolUse` hook blocks every `rm` form, so a raw `rm -f data/farmart.db …` will be rejected.
 
 Then instruct them to hit any page in the dev server (or restart `npm run dev`) to trigger automatic re-seeding.
 

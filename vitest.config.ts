@@ -13,6 +13,25 @@ const dirname =
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
   test: {
+    coverage: {
+      provider: 'v8',
+      // Only measure the files that unit tests actually run against.
+      // Components are covered by the storybook project (Chromium), not here.
+      // db.ts and session.ts are always mocked, so they show 0% and skew totals.
+      include: [
+        'src/app/api/**/*.ts',
+        'src/lib/auth.ts',
+        'src/lib/api-url.ts',
+      ],
+      exclude: ['src/**/*.test.ts'],
+      reporter: ['text', 'html', 'json-summary'],
+      thresholds: {
+        lines: 80,
+        functions: 75,
+        branches: 70,
+        statements: 80,
+      },
+    },
     projects: [
       {
         extends: true,
