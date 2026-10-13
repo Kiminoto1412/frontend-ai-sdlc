@@ -3,6 +3,12 @@
 // Deleting is never the agent's call, so every delete path is blocked here,
 // not only the recursive-force ones.
 // Exit 0 = allow, exit 2 = block (stderr is fed back to the agent).
+//
+// A command can hide another command inside itself — `$(…)`, backticks,
+// `sh -c "…"`, `find -exec … ;`. Scanning for a bare `rm` token misses all of
+// them, so inspection RECURSES into every nested command context instead.
+
+const MAX_DEPTH = 5;
 
 // Split on shell operators, but only outside quotes. A naive split breaks
 // `grep "rm -f\|rmdir"` into a phantom segment starting with a bare `rm`,
@@ -44,6 +50,54 @@ function splitSegments(command) {
 
   segments.push(current);
   return segments;
+}
+
+// Command substitutions always execute, whatever the surrounding command is:
+// `echo $(rm -rf data)` deletes. Single-quoted spans are literal, so they are
+// skipped — `echo '$(rm -rf /)'` prints text and deletes nothing.
+function substitutions(command) {
+  const found = [];
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i];
+
+    if (c === "\\") { i++; continue; }
+
+    if (c === "'") {
+      const end = command.indexOf("'", i + 1);
+      if (end === -1) break;
+      i = end;
+      continue;
+    }
+
+    if (c === "`") {
+      const end = command.indexOf("`", i + 1);
+      if (end === -1) break;
+      found.push(command.slice(i + 1, end));
+      i = end;
+      continue;
+    }
+
+    if (c === "$" && command[i + 1] === "(") {
+      let depth = 1;
+      let j = i + 2;
+      while (j < command.length && depth > 0) {
+        if (command[j] === "(") depth++;
+        else if (command[j] === ")") depth--;
+        if (depth > 0) j++;
+      }
+      found.push(command.slice(i + 2, j));
+      i = j;
+    }
+  }
+  return found;
+}
+
+function stripQuotes(s) {
+  const t = s.trim();
+  if (t.length >= 2 && (t[0] === '"' || t[0] === "'") && t[t.length - 1] === t[0]) {
+    return t.slice(1, -1);
+  }
+  return t;
 }
 
 // Tokens that precede the real command without being it, so `sudo rm` and
@@ -88,6 +142,37 @@ function hasFlag(tokens, ...names) {
   });
 }
 
+// Commands nested inside this one that need inspecting in their own right.
+function innerCommands(tokens) {
+  const inner = [];
+  const cmd = commandWord(tokens);
+  if (!cmd) return inner;
+
+  // `sh -c "<command>"` — the payload is a command, not an argument.
+  if (SHELLS.has(cmd.split("/").pop())) {
+    const i = tokens.indexOf("-c");
+    if (i !== -1 && tokens[i + 1] !== undefined) {
+      inner.push(stripQuotes(tokens.slice(i + 1).join(" ")));
+    }
+  }
+
+  // `find … -exec <command> ;` / `-execdir <command> +`
+  if (isWord(cmd, "find")) {
+    for (let i = 0; i < tokens.length; i++) {
+      if (tokens[i] !== "-exec" && tokens[i] !== "-execdir") continue;
+      const payload = [];
+      for (let j = i + 1; j < tokens.length; j++) {
+        const t = tokens[j];
+        if (t === ";" || t === "\\;" || t === "+") break;
+        payload.push(t);
+      }
+      if (payload.length) inner.push(payload.join(" "));
+    }
+  }
+
+  return inner;
+}
+
 function classify(tokens) {
   const cmd = commandWord(tokens);
   if (!cmd) return null;
@@ -95,18 +180,7 @@ function classify(tokens) {
   if (isWord(cmd, "rm")) return "rm";
   if (isWord(cmd, "rmdir")) return "rmdir";
 
-  // A shell wrapper hides its payload in a quoted string, so the command-word
-  // check cannot see it. Scan the whole segment for a delete verb instead.
-  if (SHELLS.has(cmd.split("/").pop()) && hasFlag(tokens, "-c")) {
-    if (tokens.some((t) => /(^|["'\s/])(rm|rmdir)\b/.test(t))) return "shell -c wrapping a delete";
-  }
-
-  if (isWord(cmd, "find")) {
-    if (tokens.includes("-delete")) return "find -delete";
-    const execIdx = tokens.findIndex((t) => t === "-exec" || t === "-execdir");
-    if (execIdx !== -1 && tokens.slice(execIdx + 1).some((t) => isWord(t, "rm")))
-      return "find -exec rm";
-  }
+  if (isWord(cmd, "find") && tokens.includes("-delete")) return "find -delete";
 
   if (isWord(cmd, "git")) {
     // `git clean` without a force flag deletes nothing; -n is a dry run.
@@ -115,6 +189,8 @@ function classify(tokens) {
       if (hasFlag(tokens, "-f", "--force")) return "force push";
       if (tokens.some((t) => t.startsWith("--force-with-lease") || t.startsWith("--force-if-includes")))
         return "force push";
+      // A leading "+" on a refspec is a force push: `git push origin +main`.
+      if (tokens.some((t) => /^\+[^\s]/.test(t))) return "force push (+refspec)";
     }
   }
 
@@ -136,9 +212,33 @@ function classify(tokens) {
   return null;
 }
 
+function inspect(command, depth = 0) {
+  if (depth > MAX_DEPTH) return null;
+
+  // Substitutions run regardless of what the outer command is.
+  for (const sub of substitutions(command)) {
+    const hit = inspect(sub, depth + 1);
+    if (hit) return hit;
+  }
+
+  for (const segment of splitSegments(command)) {
+    const tokens = segment.trim().split(/\s+/).filter(Boolean);
+    if (!tokens.length) continue;
+
+    const rule = classify(tokens);
+    if (rule) return rule;
+
+    for (const nested of innerCommands(tokens)) {
+      const hit = inspect(nested, depth + 1);
+      if (hit) return hit;
+    }
+  }
+
+  return null;
+}
+
 const DELETE_RULES = new Set([
-  "rm", "rmdir", "find -delete", "find -exec rm", "git clean -f",
-  "shell -c wrapping a delete",
+  "rm", "rmdir", "find -delete", "git clean -f",
 ]);
 
 const LLM_UPLOAD_RULES = new Set([
@@ -149,16 +249,9 @@ const LLM_UPLOAD_RULES = new Set([
   "graphify watch",
 ]);
 
-function inspect(command) {
-  for (const segment of splitSegments(command)) {
-    const tokens = segment.trim().split(/\s+/).filter(Boolean);
-    if (!tokens.length) continue;
-    const rule = classify(tokens);
-    if (rule) return rule;
-  }
-  return null;
-}
-
+// Always runs. A conditional entry point risks the worst failure mode for a
+// security guard: silently exiting 0 and allowing everything. Tests spawn this
+// file as a subprocess, which exercises the real path anyway.
 const raw = await readStdin();
 
 let payload;
@@ -202,7 +295,7 @@ process.stderr.write(
   `Blocked by project hook (.claude/hooks/block-destructive.mjs): ${rule}\n\n` +
     `Command: ${command}\n\n` +
     `${guidance}\n\n` +
-    `Do not route around this hook — no alternate tool, no shell wrapper, no temp script, ` +
-    `no Write/Edit trick. Report the block and stop.\n`,
+    `Do not route around this hook — no alternate tool, no shell wrapper, no command substitution, ` +
+    `no temp script, no Write/Edit trick. Report the block and stop.\n`,
 );
 process.exit(2);

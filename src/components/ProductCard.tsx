@@ -83,7 +83,9 @@ export default function ProductCard({ product }: { product: Product }) {
         )}
       </div>
 
-      <AddToCartButton productId={id} />
+      <div className="relative z-10 flex flex-col">
+        <AddToCartButton productId={id} />
+      </div>
     </>
   );
 

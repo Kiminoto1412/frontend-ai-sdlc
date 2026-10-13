@@ -89,6 +89,45 @@ describe("GET /api/products", () => {
       expect.objectContaining({ category: "fruits-vegetables" })
     );
   });
+
+  it.each(["limit", "page", "minPrice", "maxPrice"])("returns 400 for non-numeric %s", async (param) => {
+    const { GET } = await import("@/app/api/products/route");
+    vi.mocked(db.queryProducts).mockClear();
+    const res = await GET(new NextRequest(`http://localhost:3000/api/products?${param}=abc`));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.message).toContain(param);
+    expect(vi.mocked(db.queryProducts)).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for an empty or infinite numeric param", async () => {
+    const { GET } = await import("@/app/api/products/route");
+    expect((await GET(new NextRequest("http://localhost:3000/api/products?limit="))).status).toBe(400);
+    expect((await GET(new NextRequest("http://localhost:3000/api/products?page=Infinity"))).status).toBe(400);
+  });
+
+  it("passes valid numeric params through as numbers", async () => {
+    const { GET } = await import("@/app/api/products/route");
+    const res = await GET(
+      new NextRequest("http://localhost:3000/api/products?page=2&limit=500&minPrice=1.5&maxPrice=9")
+    );
+    expect(res.status).toBe(200);
+    expect(vi.mocked(db.queryProducts)).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 2, limit: 500, minPrice: 1.5, maxPrice: 9 })
+    );
+  });
+
+  it("leaves numeric params undefined when absent", async () => {
+    const { GET } = await import("@/app/api/products/route");
+    vi.mocked(db.queryProducts).mockClear();
+    const res = await GET(new NextRequest("http://localhost:3000/api/products"));
+    expect(res.status).toBe(200);
+    const arg = vi.mocked(db.queryProducts).mock.calls[0][0];
+    expect(arg.page).toBeUndefined();
+    expect(arg.limit).toBeUndefined();
+    expect(arg.minPrice).toBeUndefined();
+    expect(arg.maxPrice).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
