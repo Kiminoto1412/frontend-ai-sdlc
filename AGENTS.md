@@ -43,7 +43,7 @@ npm run build-storybook    # static Storybook build → storybook-static/
 npx vitest --project storybook run                                  # all component (play-function) tests
 npx vitest --project storybook run src/components/Foo.stories.tsx   # one story file's tests
 
-npm run db:reset           # delete data/farmart.db so the next server request re-seeds it
+npm run db:reset           # delete data/farmart.db — then RESTART the dev server to re-seed
 
 npx @google/design.md lint DESIGN.md   # validate DESIGN.md frontmatter/tokens (expect 0 errors, 0 warnings)
 ```
@@ -64,7 +64,9 @@ App Router only (`src/app/`) — there is no `pages/` directory. Read the tree f
 ### Backend
 
 - **Database** — SQLite via `better-sqlite3`, WAL mode, file at `data/farmart.db` (git-ignored; `data/.gitkeep` is committed so the directory exists in fresh checkouts). Created and **seeded automatically on the first request** — no migration step. Singleton, schema, and seed all live in `src/lib/db.ts`, which is the contract for every query helper's return type.
-- **Auth** — JWT via `jose` (`src/lib/auth.ts`). Secret from `process.env.JWT_SECRET`, falling back to a dev default. Helpers: `signToken(userId)`, `verifyToken(token)`, `extractToken(request)`.
+  - **`npm run db:reset` requires a server restart.** `getDb()` caches the connection for the process lifetime, so a running dev server keeps writing to the unlinked inode and never re-seeds. Deleting the file is not enough — stop the server, reset, start again.
+- **Auth** — JWT via `jose` (`src/lib/auth.ts`). Helpers: `signToken(userId)`, `verifyToken(token)`, `extractToken(request)`. The secret is resolved lazily inside those functions, never at module load, so importing the module in tests and Storybook needs no secret. `JWT_SECRET` is **required in production** — the app throws when it is unset there, rather than silently signing with a shared constant — and any value under 32 characters is rejected. Outside production an obvious dev-only constant is used and warned about once. See `.env.example`.
+- **Rate limiting** — `src/lib/rate-limit.ts`, a 10-attempts-per-15-minutes sliding window on `POST /api/auth/login` and `/register`, keyed per route per IP, returning 429 with `Retry-After`. It is **in-memory and single-process**: it resets on restart, is not shared across instances, and keys on `x-forwarded-for`, which a client controls unless a trusted proxy overwrites it. Treat it as defence in depth, not as a control that holds on its own.
 - **Cart session** — anonymous cookie `farmart_session` (UUID), no login required. `src/lib/session.ts` exports `getOrCreateSessionId()` (sets the cookie — API routes) and `getSessionId()` (read-only — server components).
 - **Internal fetch helper** — `src/lib/api-url.ts → apiBase()` returns `process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"`.
 
@@ -167,7 +169,9 @@ The orchestrator owns the decisions, so a `coder` prompt must be self-contained:
 
 **Shared coordination files are the orchestrator's to edit, never a subagent's**, even when a skill checklist requires them: `AGENTS.md`, `CLAUDE.md`, `DESIGN.md`, `.claude/**`, `package.json`, `src/app/api/openapi.json/route.ts`, `src/app/design/page.tsx`, `src/app/overview/page.tsx`, `docs/er-diagram.md`, `public/mermaid.html`. Subagents report the needed edit under `NEEDS ORCHESTRATOR`; apply it once after the batch finishes.
 
-Subagents do not commit, push, or run `npm run db:reset`. Each verifies with `npx tsc --noEmit` **and** `npm test` before reporting, but a report states intent — read the actual diff before calling the work done.
+Subagents do not run `npm run db:reset`, and they **never change git state** — no `commit`, `push`, `stash`, `checkout`, `restore`, `reset`, `clean`. Read-only `git status`/`diff`/`log` only. One shared working tree means `git stash` sweeps up every sibling's in-flight edits, and a `stash pop` that looks clean can still have raced a concurrent write. The orchestrator owns git.
+
+Each subagent verifies with `npx tsc --noEmit` **and** `npm test` before reporting, but a report states intent — read the actual diff before calling the work done. Expect cross-talk while a batch is in flight: a sibling's red-phase tests or not-yet-created module will show up as failures in another agent's run. Judge the batch only after every agent has landed.
 
 ---
 

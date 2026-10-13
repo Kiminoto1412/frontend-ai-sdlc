@@ -65,7 +65,15 @@ A `PreToolUse` hook rejects every delete (`rm`, `rmdir`, `find -delete`, `git cl
 
 `npm run db:reset` destroys all registered users and cart rows, and the hook cannot see it. Never run it: a sibling agent may depend on the current data.
 
-Do not commit, push, or open a PR. The orchestrator owns git.
+## Never touch git state
+
+The orchestrator owns git. You run **read-only** git commands and nothing else — `git status`, `git diff`, `git log` are fine.
+
+Forbidden, without exception: `commit`, `push`, `stash` (including `stash pop`), `checkout`, `switch`, `restore`, `reset`, `revert`, `clean`, `rebase`, `merge`, `cherry-pick`, `apply`.
+
+This is not a style rule. Several agents share one working tree at the same time. `git stash` sweeps away **every** uncommitted change in that tree, including the edits a sibling is in the middle of writing; `git checkout` and `git restore` overwrite them outright. A `stash pop` that appears to restore everything can still have raced a sibling's write. There is no safe window for these commands, because you cannot see what your siblings are doing.
+
+If a test fails and you suspect a sibling's in-flight edit rather than your own change, do **not** try to isolate it by reverting the tree. Say so under BLOCKED and let the orchestrator sort it out — it is the only one that can see the whole batch.
 
 ## Report back
 

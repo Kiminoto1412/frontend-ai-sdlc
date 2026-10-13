@@ -106,6 +106,29 @@ describe("GET /api/products", () => {
     expect((await GET(new NextRequest("http://localhost:3000/api/products?page=Infinity"))).status).toBe(400);
   });
 
+  it.each(["limit=1.5", "page=1.5&limit=1", "page=-1", "page=0", "limit=0", "minPrice=-5", "maxPrice=-0.5"])(
+    "returns 400 for out-of-range param %s",
+    async (qs) => {
+      const { GET } = await import("@/app/api/products/route");
+      vi.mocked(db.queryProducts).mockClear();
+      const res = await GET(new NextRequest(`http://localhost:3000/api/products?${qs}`));
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(typeof body.message).toBe("string");
+      expect(vi.mocked(db.queryProducts)).not.toHaveBeenCalled();
+    }
+  );
+
+  it("accepts a decimal minPrice", async () => {
+    const { GET } = await import("@/app/api/products/route");
+    vi.mocked(db.queryProducts).mockClear();
+    const res = await GET(new NextRequest("http://localhost:3000/api/products?minPrice=1.99"));
+    expect(res.status).toBe(200);
+    expect(vi.mocked(db.queryProducts)).toHaveBeenCalledWith(
+      expect.objectContaining({ minPrice: 1.99 })
+    );
+  });
+
   it("passes valid numeric params through as numbers", async () => {
     const { GET } = await import("@/app/api/products/route");
     const res = await GET(

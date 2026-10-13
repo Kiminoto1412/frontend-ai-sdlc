@@ -21,8 +21,11 @@ vi.mock("@/lib/db", () => ({
 
 import * as db from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { resetRateLimits } from "@/lib/rate-limit";
 
 beforeEach(() => {
+  resetRateLimits();
+  vi.useRealTimers();
   vi.mocked(db.getDb).mockReturnValue({ prepare: mockPrepare } as never);
   mockRun.mockReset();
   mockGet.mockReset();
@@ -156,5 +159,71 @@ describe("POST /api/auth/login", () => {
     });
     const res = await POST(req);
     expect(res.status).toBe(401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rate limiting
+// ---------------------------------------------------------------------------
+describe("auth rate limiting", () => {
+  const cases = [
+    { name: "login", path: "@/app/api/auth/login/route" },
+    { name: "register", path: "@/app/api/auth/register/route" },
+  ];
+
+  function makeReq(name: string, ip?: string) {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (ip) headers["x-forwarded-for"] = ip;
+    return new NextRequest(`http://localhost:3000/api/auth/${name}`, {
+      method: "POST",
+      body: JSON.stringify({ email: "user@test.com", password: "securepass" }),
+      headers,
+    });
+  }
+
+  for (const { name, path } of cases) {
+    describe(name, () => {
+      beforeEach(() => {
+        mockGet.mockReturnValue({ id: "u-123", password_hash: "x" });
+        mockRun.mockReturnValue({ changes: 1 });
+      });
+
+      it("returns 429 with Retry-After on the 11th attempt from one IP", async () => {
+        const { POST } = await import(path);
+        for (let i = 0; i < 10; i++) {
+          const res = await POST(makeReq(name, "1.1.1.1"));
+          expect(res.status).not.toBe(429);
+        }
+        const res = await POST(makeReq(name, "1.1.1.1, 5.5.5.5"));
+        expect(res.status).toBe(429);
+        expect(Number(res.headers.get("Retry-After"))).toBeGreaterThan(0);
+        expect(typeof (await res.json()).message).toBe("string");
+      });
+
+      it("does not affect a different IP", async () => {
+        const { POST } = await import(path);
+        for (let i = 0; i < 11; i++) await POST(makeReq(name, "1.1.1.1"));
+        const res = await POST(makeReq(name, "2.2.2.2"));
+        expect(res.status).not.toBe(429);
+      });
+
+      it("restores access after the window expires", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+        const { POST } = await import(path);
+        for (let i = 0; i < 11; i++) await POST(makeReq(name, "1.1.1.1"));
+        expect((await POST(makeReq(name, "1.1.1.1"))).status).toBe(429);
+        vi.advanceTimersByTime(15 * 60 * 1000 + 1);
+        expect((await POST(makeReq(name, "1.1.1.1"))).status).not.toBe(429);
+      });
+    });
+  }
+
+  it("budgets login and register separately", async () => {
+    mockGet.mockReturnValue({ id: "u-123", password_hash: "x" });
+    const login = await import("@/app/api/auth/login/route");
+    const register = await import("@/app/api/auth/register/route");
+    for (let i = 0; i < 11; i++) await login.POST(makeReq("login", "1.1.1.1"));
+    expect((await register.POST(makeReq("register", "1.1.1.1"))).status).not.toBe(429);
   });
 });

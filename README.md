@@ -26,7 +26,7 @@ The SQLite database (`data/farmart.db`) is created and seeded automatically on f
 ```bash
 npm test                  # unit + integration tests (Vitest)
 npm run test:coverage     # with coverage report
-npm run db:reset          # wipe DB → re-seed on next request
+npm run db:reset          # wipe DB — restart the dev server to re-seed
 npm run storybook         # component explorer
 npx tsc --noEmit          # typecheck
 npm run lint              # ESLint

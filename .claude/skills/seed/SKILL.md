@@ -59,7 +59,7 @@ npm run db:reset
 
 That script deletes `data/farmart.db` plus its `-shm`/`-wal` siblings through Node. Use it rather than `rm`: the project's `PreToolUse` hook blocks every `rm` form, so a raw `rm -f data/farmart.db …` will be rejected.
 
-Then instruct them to hit any page in the dev server (or restart `npm run dev`) to trigger automatic re-seeding.
+**The dev server must be stopped first, and restarted after.** `getDb()` caches the connection for the whole process lifetime, so a running server holds the deleted inode open and keeps writing to a file that no longer has a name — it never notices the reset and never re-seeds. Hitting a page is not enough. The correct sequence is: stop the server, `npm run db:reset`, `npm run dev`, then hit any page.
 
 ### "Add a new product to the seed data"
 

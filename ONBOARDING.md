@@ -23,8 +23,11 @@ node -v          # expect v22.x
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000
+cp .env.example .env.local   # then set JWT_SECRET
+npm run dev                  # http://localhost:3000
 ```
+
+`JWT_SECRET` must be at least 32 characters. Generate one with `openssl rand -base64 32`. In development the app falls back to a warned dev-only constant if you skip this; **in production it refuses to start without it**, which is deliberate — the alternative is signing tokens with a value anyone can read in the source.
 
 The SQLite database (`farmart.db`) is **created and seeded automatically** the first time the dev server handles any request. No manual migration step needed.
 
@@ -125,19 +128,15 @@ npm run lint             # ESLint
 
 The DB file lives at `data/farmart.db` (git-ignored). The `data/` directory is committed with a `.gitkeep` so the folder exists in fresh checkouts.
 
-**Reset seed data** (delete and let the server re-seed on next request):
+**Reset seed data.** Stop the dev server first — `getDb()` caches the connection for the process lifetime, so a running server keeps writing to the deleted file and never re-seeds.
 
 ```bash
-npm run db:reset
-# then restart: npm run dev
+# 1. stop the dev server (Ctrl+C)
+npm run db:reset     # removes farmart.db plus its -wal and -shm siblings
+npm run dev          # DB is recreated and seeded on the first request
 ```
 
-Or manually:
-
-```bash
-rm data/farmart.db data/farmart.db-shm data/farmart.db-wal
-# restart npm run dev → DB auto-recreates and re-seeds
-```
+This destroys every registered user and every cart row.
 
 ---
 
