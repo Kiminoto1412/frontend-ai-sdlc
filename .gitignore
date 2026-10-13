@@ -52,3 +52,9 @@ storybook-static
 
 # graphify code-graph output (regenerate with: graphify extract . --code-only)
 /graphify-out/
+
+# playwright e2e output
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

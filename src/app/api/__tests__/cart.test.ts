@@ -141,6 +141,37 @@ describe("POST /api/cart/items", () => {
     expect(res.status).toBe(400);
   });
 
+  // Found by the e2e suite: an object is truthy, so it passed the old presence
+  // check and reached better-sqlite3, which reads it as a named-parameter bag
+  // and throws outside any catch — a 500 from a request body.
+  it.each([[{}], [[]], [123], [true], [""]])(
+    "returns 400 for a non-string productId (%j)",
+    async (productId) => {
+      const { POST } = await import("@/app/api/cart/items/route");
+      const req = new NextRequest("http://localhost:3000/api/cart/items", {
+        method: "POST",
+        body: JSON.stringify({ productId, quantity: 1 }),
+        headers: { "Content-Type": "application/json" },
+      });
+      expect((await POST(req)).status).toBe(400);
+    },
+  );
+
+  // 1.5 stored a REAL in an INTEGER column; 1e400 parses to Infinity, which
+  // SQLite binds as NULL and CHECK(quantity > 0) then rejects as a 500.
+  it.each([[1.5], [0.5], [1e400], [-1], ["2"]])(
+    "returns 400 for a non-integer quantity (%j)",
+    async (quantity) => {
+      const { POST } = await import("@/app/api/cart/items/route");
+      const req = new NextRequest("http://localhost:3000/api/cart/items", {
+        method: "POST",
+        body: JSON.stringify({ productId: "p1", quantity }),
+        headers: { "Content-Type": "application/json" },
+      });
+      expect((await POST(req)).status).toBe(400);
+    },
+  );
+
   it("returns 404 when product does not exist", async () => {
     vi.mocked(db.getProductDetail).mockReturnValue(null);
     const { POST } = await import("@/app/api/cart/items/route");

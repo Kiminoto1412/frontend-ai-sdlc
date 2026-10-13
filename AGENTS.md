@@ -44,6 +44,9 @@ npm run build-storybook    # static Storybook build → storybook-static/
 npx vitest --project storybook run                                  # all component (play-function) tests
 npx vitest --project storybook run src/components/Foo.stories.tsx   # one story file's tests
 
+npm run test:e2e           # Playwright against a real production build (builds + starts on :3100)
+npm run test:e2e:ui        # same, in the Playwright UI runner
+
 npm run db:reset           # delete data/farmart.db — then RESTART the dev server to re-seed
 
 npx @google/design.md lint DESIGN.md   # validate DESIGN.md frontmatter/tokens (expect 0 errors, 0 warnings)
@@ -77,7 +80,21 @@ App Router only (`src/app/`) — there is no `pages/` directory. Read the tree f
 
 ### Tests
 
-Two Vitest projects in `vitest.config.ts`: `unit` (Node — `src/lib/__tests__/`, `src/app/api/__tests__/`) and `storybook` (Chromium via Playwright). Components have no `__tests__` folder; their tests are `play` functions inside the story files. See `/test`.
+Three layers, each catching what the others structurally cannot:
+
+| Layer | Command | What it runs against |
+|---|---|---|
+| `unit` (Vitest, Node) | `npm test` | `src/lib/__tests__/`, `src/app/api/__tests__/` — `@/lib/db` and `@/lib/session` mocked |
+| `storybook` (Vitest, Chromium) | `npx vitest --project storybook run` | `play` functions inside `*.stories.tsx`; no server, no database |
+| `e2e` (Playwright) | `npm run test:e2e` | `e2e/*.spec.ts` against a real production build, real SQLite, real HTTP |
+
+Components have no `__tests__` folder; their tests are `play` functions in the story files. See `/test`.
+
+**E2E exists because the other two have blind spots, not for coverage.** Unit tests mock the database, so they cannot show what better-sqlite3 does with a value that actually reached it — that is how several 500s shipped, and how the non-string `productId` crash was eventually found. Storybook has no API server, which is why the async server-component stories (`BestSeller`, `TopSaver`, `CategoryGrid`, `JustLanding`, `Header`) fail there and have done for a long time: E2E is the only layer that proves those sections render real data. Flows that cross a string boundary — `router.push("/?q=…")`, `fetch(apiBase() + …)` — are invisible to every static tool and untestable below this layer.
+
+`playwright.config.ts` builds and starts the app on port **3100**, not 3000, so it never talks to a dev server someone left running. It sets `NEXT_PUBLIC_BASE_URL` to match: without that, server components would fetch `localhost:3000` through `apiBase()` and silently render another server's data, since none of them check `res.ok`. It runs the production build on purpose — HSTS is production-only and `generateStaticParams` only prerenders there.
+
+Each test gets a fresh browser context, so the `farmart_session` cookie differs per test and carts are isolated without touching the database. Tests that register or hit the rate limiter use a timestamped email for the same reason. `retries: 0` — a test that only passes on retry is flaky, and hiding that is worse than a red run.
 
 ### Security headers
 
