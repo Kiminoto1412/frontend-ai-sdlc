@@ -66,8 +66,8 @@ App Router only (`src/app/`) — there is no `pages/` directory. Read the tree f
 - **Database** — SQLite via `better-sqlite3`, WAL mode, file at `data/farmart.db` (git-ignored; `data/.gitkeep` is committed so the directory exists in fresh checkouts). Created and **seeded automatically on the first request** — no migration step. Singleton, schema, and seed all live in `src/lib/db.ts`, which is the contract for every query helper's return type.
   - **`npm run db:reset` requires a server restart.** `getDb()` caches the connection for the process lifetime, so a running dev server keeps writing to the unlinked inode and never re-seeds. Deleting the file is not enough — stop the server, reset, start again.
 - **Auth** — JWT via `jose` (`src/lib/auth.ts`). Helpers: `signToken(userId)`, `verifyToken(token)`, `extractToken(request)`. The secret is resolved lazily inside those functions, never at module load, so importing the module in tests and Storybook needs no secret. `JWT_SECRET` is **required in production** — the app throws when it is unset there, rather than silently signing with a shared constant — and any value under 32 characters is rejected. Outside production an obvious dev-only constant is used and warned about once. See `.env.example`.
-- **Rate limiting** — `src/lib/rate-limit.ts`, a 10-attempts-per-15-minutes sliding window on `POST /api/auth/login` and `/register`, keyed per route per IP, returning 429 with `Retry-After`. It is **in-memory and single-process**: it resets on restart, is not shared across instances, and keys on `x-forwarded-for`, which a client controls unless a trusted proxy overwrites it. Treat it as defence in depth, not as a control that holds on its own.
-- **Cart session** — anonymous cookie `farmart_session` (UUID), no login required. `src/lib/session.ts` exports `getOrCreateSessionId()` (sets the cookie — API routes) and `getSessionId()` (read-only — server components).
+- **Rate limiting** — `src/lib/rate-limit.ts`, a 10-attempts-per-15-minutes sliding window on `POST /api/auth/login` and `/register`, returning 429 with `Retry-After`. The bucket comes from `clientKey()`: by **account** (the submitted email, normalised) by default, and by **IP** only when `TRUST_PROXY_HOPS` declares how many proxies sit in front, in which case the address is read that many entries from the right of `x-forwarded-for`. Never key on that header without the variable set — unproxied it is attacker-controlled, so rotating it buys an unlimited budget, while honest clients all collapse into one bucket and ten bad logins lock out the whole site. Per-account keying accepts a narrower trade: an attacker can lock out one victim for the window. The limiter is **in-memory and single-process**, so it resets on restart and is not shared across instances.
+- **Cart session** — anonymous cookie `farmart_session` (UUID), no login required. `src/lib/session.ts` exports `getOrCreateSessionId()` (sets the cookie — API routes) and `getSessionId()` (read-only — server components). The value is attacker-supplied, so both helpers **reject anything that is not a UUID of our own shape** and mint a fresh id instead; that bounds the key space but does not bind a cart to a user, so knowing a live session id still means owning that cart. Flags: `httpOnly`, `sameSite: "lax"`, `path: "/"`, 30-day `maxAge`, and `secure` **in production only** — a Secure cookie is dropped over plain-HTTP localhost, which would break the cart in development.
 - **Internal fetch helper** — `src/lib/api-url.ts → apiBase()` returns `process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"`.
 
 ### Components
@@ -77,6 +77,18 @@ App Router only (`src/app/`) — there is no `pages/` directory. Read the tree f
 ### Tests
 
 Two Vitest projects in `vitest.config.ts`: `unit` (Node — `src/lib/__tests__/`, `src/app/api/__tests__/`) and `storybook` (Chromium via Playwright). Components have no `__tests__` folder; their tests are `play` functions inside the story files. See `/test`.
+
+### Security headers
+
+`next.config.ts` serves a header block on `/:path*`: an enforcing CSP, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a `Permissions-Policy` denying camera/microphone/geolocation, and HSTS **in production only** (sending it over plain-HTTP localhost pins a developer's browser to https for localhost, which is painful to undo).
+
+The CSP carries three deliberate loosenings, each with a reason in the code:
+
+- `script-src 'unsafe-inline'` — Next emits inline bootstrap and RSC scripts, and a nonce needs middleware that is not wired up. **This is the weak point: CSP as shipped does not stop injected inline script.** Tightening it means nonce-based CSP via `middleware.ts`.
+- `style-src 'unsafe-inline'` — required by Next, `swagger-ui-react` on `/docs`, and React Flow on `/overview`.
+- `cdnjs.cloudflare.com`, `fonts.googleapis.com`, `fonts.gstatic.com` — needed only by the static `public/mermaid.html` that `/schema` redirects to.
+
+Changing the CSP means re-checking the routes that inject styles at runtime — `/docs`, `/overview`, `/schema` — in a real browser, not just running the tests. `src/app/__tests__/security-headers.test.ts` asserts the header values, but it cannot tell you a page stopped rendering.
 
 ### Styling
 

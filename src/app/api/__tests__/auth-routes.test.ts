@@ -171,12 +171,12 @@ describe("auth rate limiting", () => {
     { name: "register", path: "@/app/api/auth/register/route" },
   ];
 
-  function makeReq(name: string, ip?: string) {
+  function makeReq(name: string, email = "user@test.com", xff?: string) {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (ip) headers["x-forwarded-for"] = ip;
+    if (xff) headers["x-forwarded-for"] = xff;
     return new NextRequest(`http://localhost:3000/api/auth/${name}`, {
       method: "POST",
-      body: JSON.stringify({ email: "user@test.com", password: "securepass" }),
+      body: JSON.stringify({ email, password: "securepass" }),
       headers,
     });
   }
@@ -188,33 +188,51 @@ describe("auth rate limiting", () => {
         mockRun.mockReturnValue({ changes: 1 });
       });
 
-      it("returns 429 with Retry-After on the 11th attempt from one IP", async () => {
+      it("returns 429 with Retry-After on the 11th attempt against one account", async () => {
         const { POST } = await import(path);
         for (let i = 0; i < 10; i++) {
-          const res = await POST(makeReq(name, "1.1.1.1"));
+          const res = await POST(makeReq(name));
           expect(res.status).not.toBe(429);
         }
-        const res = await POST(makeReq(name, "1.1.1.1, 5.5.5.5"));
+        const res = await POST(makeReq(name));
         expect(res.status).toBe(429);
         expect(Number(res.headers.get("Retry-After"))).toBeGreaterThan(0);
         expect(typeof (await res.json()).message).toBe("string");
       });
 
-      it("does not affect a different IP", async () => {
+      it("a rotating x-forwarded-for buys no extra budget", async () => {
         const { POST } = await import(path);
-        for (let i = 0; i < 11; i++) await POST(makeReq(name, "1.1.1.1"));
-        const res = await POST(makeReq(name, "2.2.2.2"));
-        expect(res.status).not.toBe(429);
+        for (let i = 0; i < 10; i++) await POST(makeReq(name, "victim@test.com", `1.1.1.${i}`));
+        const res = await POST(makeReq(name, "victim@test.com", "9.9.9.9"));
+        expect(res.status).toBe(429);
+      });
+
+      it("one locked-out account does not lock out everyone else", async () => {
+        const { POST } = await import(path);
+        for (let i = 0; i < 11; i++) await POST(makeReq(name, "victim@test.com"));
+        expect((await POST(makeReq(name, "victim@test.com"))).status).toBe(429);
+        expect((await POST(makeReq(name, "bystander@test.com"))).status).not.toBe(429);
       });
 
       it("restores access after the window expires", async () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
         const { POST } = await import(path);
-        for (let i = 0; i < 11; i++) await POST(makeReq(name, "1.1.1.1"));
-        expect((await POST(makeReq(name, "1.1.1.1"))).status).toBe(429);
+        for (let i = 0; i < 11; i++) await POST(makeReq(name));
+        expect((await POST(makeReq(name))).status).toBe(429);
         vi.advanceTimersByTime(15 * 60 * 1000 + 1);
-        expect((await POST(makeReq(name, "1.1.1.1"))).status).not.toBe(429);
+        expect((await POST(makeReq(name))).status).not.toBe(429);
+      });
+
+      it("rejects a non-string email with 400 rather than throwing", async () => {
+        const { POST } = await import(path);
+        const req = new NextRequest(`http://localhost:3000/api/auth/${name}`, {
+          method: "POST",
+          body: JSON.stringify({ email: {}, password: "securepass" }),
+          headers: { "Content-Type": "application/json" },
+        });
+        const res = await POST(req);
+        expect(res.status).toBe(400);
       });
     });
   }
@@ -223,7 +241,7 @@ describe("auth rate limiting", () => {
     mockGet.mockReturnValue({ id: "u-123", password_hash: "x" });
     const login = await import("@/app/api/auth/login/route");
     const register = await import("@/app/api/auth/register/route");
-    for (let i = 0; i < 11; i++) await login.POST(makeReq("login", "1.1.1.1"));
-    expect((await register.POST(makeReq("register", "1.1.1.1"))).status).not.toBe(429);
+    for (let i = 0; i < 11; i++) await login.POST(makeReq("login"));
+    expect((await register.POST(makeReq("register"))).status).not.toBe(429);
   });
 });

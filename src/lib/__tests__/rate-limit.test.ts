@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { rateLimit, resetRateLimits, getClientIp, rateLimitSize } from "@/lib/rate-limit";
+import { rateLimit, resetRateLimits, clientKey, rateLimitSize } from "@/lib/rate-limit";
 
 const WINDOW = 15 * 60 * 1000;
 
@@ -61,13 +61,58 @@ describe("rateLimit", () => {
   });
 });
 
-describe("getClientIp", () => {
-  it("uses the first x-forwarded-for entry", () => {
-    const req = new Request("http://x", { headers: { "x-forwarded-for": "9.9.9.9, 8.8.8.8" } });
-    expect(getClientIp(req)).toBe("9.9.9.9");
+describe("clientKey", () => {
+  const xff = (v: string) => new Request("http://x", { headers: { "x-forwarded-for": v } });
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  describe("with no trusted proxy (the default)", () => {
+    it("ignores x-forwarded-for entirely and keys on the account", () => {
+      expect(clientKey(xff("9.9.9.9"), "a@b.com")).toBe("id:a@b.com");
+    });
+
+    it("gives a rotating x-forwarded-for no fresh budget", () => {
+      // The bypass: 11 attempts on one account from 11 forged addresses.
+      for (let i = 0; i < 10; i++) {
+        expect(rateLimit(`login:${clientKey(xff(`1.1.1.${i}`), "victim@b.com")}`).allowed).toBe(true);
+      }
+      expect(rateLimit(`login:${clientKey(xff("9.9.9.9"), "victim@b.com")}`).allowed).toBe(false);
+    });
+
+    it("does not let one account's lockout block every other user", () => {
+      // The inverse failure: a shared "unknown" bucket would lock out the site.
+      for (let i = 0; i < 11; i++) rateLimit(`login:${clientKey(xff("1.1.1.1"), "victim@b.com")}`);
+      expect(rateLimit(`login:${clientKey(xff("1.1.1.1"), "victim@b.com")}`).allowed).toBe(false);
+      expect(rateLimit(`login:${clientKey(xff("1.1.1.1"), "bystander@b.com")}`).allowed).toBe(true);
+    });
+
+    it("normalises case and surrounding whitespace so they are one bucket", () => {
+      expect(clientKey(xff("1.1.1.1"), "  A@B.com ")).toBe("id:a@b.com");
+    });
   });
 
-  it("falls back to a constant when absent", () => {
-    expect(getClientIp(new Request("http://x"))).toBe("unknown");
+  describe("with TRUST_PROXY_HOPS set", () => {
+    it("takes the address the innermost trusted proxy appended", () => {
+      vi.stubEnv("TRUST_PROXY_HOPS", "1");
+      expect(clientKey(xff("9.9.9.9, 8.8.8.8"), "a@b.com")).toBe("ip:8.8.8.8");
+    });
+
+    it("counts hops from the right", () => {
+      vi.stubEnv("TRUST_PROXY_HOPS", "2");
+      expect(clientKey(xff("9.9.9.9, 7.7.7.7, 8.8.8.8"), "a@b.com")).toBe("ip:7.7.7.7");
+    });
+
+    it("falls back to the account when the header is absent or too short", () => {
+      vi.stubEnv("TRUST_PROXY_HOPS", "2");
+      expect(clientKey(new Request("http://x"), "a@b.com")).toBe("id:a@b.com");
+      expect(clientKey(xff("9.9.9.9"), "a@b.com")).toBe("id:a@b.com");
+    });
+
+    it("ignores a non-positive or non-integer value", () => {
+      for (const v of ["0", "-1", "1.5", "abc", ""]) {
+        vi.stubEnv("TRUST_PROXY_HOPS", v);
+        expect(clientKey(xff("9.9.9.9"), "a@b.com")).toBe("id:a@b.com");
+      }
+    });
   });
 });
