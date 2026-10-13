@@ -189,6 +189,8 @@ Each subagent verifies with `npx tsc --noEmit` **and** `npm test` before reporti
 
 ## Gotchas
 
+- **`package-lock.json` is load-bearing — never delete it.** Every dependency carries a real range now, but a clean resolve still moves minors across the Storybook/Vite/Vitest peer graph, which is tight enough to deadlock. `npm ci` is the reproducible install; `rm`-ing the lockfile once left the repo unable to `npm install` at all.
+- **`next` cannot be bumped to 16.4.x yet.** It closes seven advisories, including a critical and a self-hosted SSG/ISR cache-poisoning issue that `generateStaticParams` in `product/[id]` makes reachable. But `@storybook/nextjs-vite@10.6.0`'s App Router mock breaks against it — `useRouter` reads `.data` of `undefined` and every `ProductCard` story fails. Storybook 10.6.2 claims support, but installing it deadlocks on the `@types/node` / Vite / Vitest peer graph. Bump `next` and the whole Storybook set together, and run `npx vitest --project storybook run` before believing it worked.
 - **Vitest does not typecheck.** `npm test` can pass while `npx tsc --noEmit` fails — mock objects drift from the real signatures they stand in for. Run both before calling anything done.
 - **`public/mermaid.html`** duplicates the ER diagram from `docs/er-diagram.md` (served at `http://localhost:3000/mermaid.html`), so it goes stale silently. `/database` has the sync checklist.
 - **`vitest.shims.d.ts`** at the project root re-exports Vitest globals (`describe`, `it`, `expect`, …) so story `play` functions get types without importing from `vitest` directly.
