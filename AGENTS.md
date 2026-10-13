@@ -120,7 +120,7 @@ Client components (`"use client"`) hit API routes with `fetch()` and refresh ser
 ### Auth & session
 
 - Cart is anonymous — session ID in cookie `farmart_session`. Use `getOrCreateSessionId()` in API routes, `getSessionId()` in server components.
-- Wishlist requires an `Authorization: Bearer <jwt>` header.
+- Wishlist requires an `Authorization: Bearer <jwt>` header. **No client code holds a token**, so the wishlist API has no caller from the UI today. `RegisterForm` deliberately discards the JWT the register endpoint returns — it previously sat in `localStorage`, readable by any XSS for its full 24h life, and nothing read it back. When a signed-in UI is built, carry the session in a server-set `httpOnly` cookie; do not reintroduce browser storage for it. `RegisterForm.stories.tsx` guards this.
 - `cookies()` from `next/headers` only works in Route Handlers and Server Components — it cannot run in tests.
 
 ### Blocked commands — deleting is never the agent's call

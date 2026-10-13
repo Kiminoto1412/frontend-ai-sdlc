@@ -19,7 +19,10 @@ export default function RegisterForm() {
     });
     const data = await res.json();
     if (res.ok) {
-      localStorage.setItem("farmart_token", data.token);
+      // The JWT in `data.token` is deliberately discarded. Persisting it in
+      // localStorage made it readable by any XSS on the origin for its full
+      // 24h life, and nothing ever read it back. When a signed-in UI exists,
+      // carry the session in an httpOnly cookie set by the server instead.
       setStatus("success");
       setMessage("Welcome! Your 15% discount has been applied.");
     } else {
