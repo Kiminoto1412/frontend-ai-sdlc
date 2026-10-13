@@ -30,7 +30,8 @@ Use Node from `.nvmrc` (currently `22`): `nvm use`. Storybook 10 requires Node 2
 npm run dev                # Next.js dev server (Turbopack) — http://localhost:3000
 npm run build              # production build
 npm run start              # serve the production build
-npm run lint               # ESLint (flat config, includes eslint-plugin-storybook)
+npm run lint               # ESLint (flat config) — --max-warnings 0, run on EVERY code change
+npm run lint:fix           # auto-fix the mechanical problems
 npx tsc --noEmit           # typecheck (no dedicated package.json script)
 
 npm test                   # backend unit + integration tests (Vitest, Node env)
@@ -122,6 +123,28 @@ Client components (`"use client"`) hit API routes with `fetch()` and refresh ser
 - Cart is anonymous — session ID in cookie `farmart_session`. Use `getOrCreateSessionId()` in API routes, `getSessionId()` in server components.
 - Wishlist requires an `Authorization: Bearer <jwt>` header. **No client code holds a token**, so the wishlist API has no caller from the UI today. `RegisterForm` deliberately discards the JWT the register endpoint returns — it previously sat in `localStorage`, readable by any XSS for its full 24h life, and nothing read it back. When a signed-in UI is built, carry the session in a server-set `httpOnly` cookie; do not reintroduce browser storage for it. `RegisterForm.stories.tsx` guards this.
 - `cookies()` from `next/headers` only works in Route Handlers and Server Components — it cannot run in tests.
+
+### Lint on every code change — not at the end
+
+**Any turn that adds, removes, or edits code runs the linter before it is called done.** Not at the end of a batch, not before committing: in the same turn as the change.
+
+```bash
+npm run lint         # whole project; --max-warnings 0, so a warning fails it
+npm run lint:fix     # the mechanical ones
+npx eslint --max-warnings 0 path/to/file.ts   # just what you touched
+```
+
+Warnings are failures here on purpose. A warning that is allowed to survive becomes permanent, and the next one hides behind it.
+
+A `PostToolUse` hook (`.claude/hooks/lint-changed.mjs`) lints each file right after `Edit`/`Write` and reports failures back. It is a safety net for the file in front of you, not a substitute for `npm run lint`: it never sees a file that another tool changed, cannot catch a problem your edit caused in a *different* file, and stays silent when `node_modules` is missing. Run the project-wide command before declaring work finished.
+
+Lint, typecheck and tests are three separate gates, and passing one says nothing about the others:
+
+```bash
+npm run lint && npx tsc --noEmit && npm test
+```
+
+Generated output is excluded in `eslint.config.mjs` (`coverage/`, `storybook-static/`, `graphify-out/`, `.agents/`). If the linter reports a file nobody can fix in source, add it there rather than disabling the rule.
 
 ### Blocked commands — deleting is never the agent's call
 

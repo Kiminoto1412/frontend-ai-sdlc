@@ -44,12 +44,15 @@ If the task is ambiguous, underspecified, or looks wrong, **stop and report** �
 
 ## Verify before reporting
 
-Both of these, every time:
+All three of these, every time — they are independent gates and passing one says nothing about the others:
 
 ```bash
+npm run lint         # --max-warnings 0, so a warning is a failure
 npx tsc --noEmit     # Vitest does NOT typecheck — a passing test suite proves nothing here
 npm test             # backend unit + integration
 ```
+
+A `PostToolUse` hook lints each file as you write it, but that only covers the file in front of you. Run `npm run lint` yourself before reporting: your change can break a different file.
 
 For component work also run the story tests for the file you touched:
 

@@ -11,3 +11,5 @@ All project instructions for Farmart live in **`AGENTS.md`** — architecture, c
 Add new instructions to `AGENTS.md` below that marker. Don't duplicate them here; two copies drift apart.
 
 Before writing any UI, read `DESIGN.md` — it is the authority on styling, not this file and not `AGENTS.md`.
+
+Two gates that apply to every change, stated here because they are easy to skip: **run `npm run lint` in the same turn as any code change**, and remember that lint, `npx tsc --noEmit` and `npm test` each catch different things. The full rule, including why warnings are treated as failures, is under *Lint on every code change* in `AGENTS.md`.

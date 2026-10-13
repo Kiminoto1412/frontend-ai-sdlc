@@ -15,6 +15,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated output — linting it reports problems nobody can fix in source.
+    "coverage/**",
+    "storybook-static/**",
+    "graphify-out/**",
+    // Third-party skill pack, not this project's source.
+    ".agents/**",
   ]),
   ...storybook.configs["flat/recommended"]
 ]);

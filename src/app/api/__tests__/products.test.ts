@@ -190,7 +190,6 @@ describe("GET /api/products/best-sellers", () => {
 describe("GET /api/products/top-savers", () => {
   it("returns 200 with saleEndsAt and data", async () => {
     const { GET } = await import("@/app/api/products/top-savers/route");
-    const req = new NextRequest("http://localhost:3000/api/products/top-savers");
     const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
