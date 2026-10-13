@@ -1,4 +1,5 @@
 ---
+name: graphify
 description: Query the Farmart code graph with graphify — trace callers, run impact analysis before changing a shared symbol, find how two parts connect, or orient in the codebase. Covers the mandatory --code-only rule, which commands are sharp vs weak, and graph staleness. Use when asked who calls what, what breaks if X changes, how A reaches B, or for an architecture overview.
 ---
 

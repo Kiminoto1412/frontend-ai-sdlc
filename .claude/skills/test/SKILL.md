@@ -1,4 +1,5 @@
 ---
+name: test
 description: Write or fix Farmart backend tests and work with coverage. Carries the two-project Vitest layout, every mock pattern (db, session, bcryptjs, JWT), the real return-type shapes mocks must match, and the coverage scope and thresholds. Use whenever writing, debugging, or measuring tests.
 ---
 

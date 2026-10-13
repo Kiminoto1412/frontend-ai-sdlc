@@ -1,4 +1,5 @@
 ---
+name: api-endpoint
 description: Add or change a REST endpoint under src/app/api/. Carries the route-handler conventions, the response-shape contract, and the checklist of every file that must be updated alongside it (OpenAPI spec, tests, docs). Use whenever creating, modifying, or removing an API route.
 ---
 

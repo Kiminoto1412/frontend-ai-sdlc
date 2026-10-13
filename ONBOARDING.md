@@ -102,7 +102,7 @@ Interactive docs at **[http://localhost:3000/docs](http://localhost:3000/docs)**
 
 ER diagram at **[http://localhost:3000/mermaid.html](http://localhost:3000/mermaid.html)** — source at `docs/er-diagram.md`.
 
-> **Rule:** whenever a table or column changes, update `docs/er-diagram.md`, `public/mermaid.html`, and `.claude/skills/database.md` together. Use the `/database` skill in Claude Code to get the full checklist.
+> **Rule:** whenever a table or column changes, update `docs/er-diagram.md`, `public/mermaid.html`, and `.claude/skills/database/SKILL.md` together. Use the `/database` skill in Claude Code to get the full checklist.
 
 ---
 

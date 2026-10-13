@@ -144,6 +144,8 @@ Use it for relationships — `affected` before changing a shared symbol, `explai
 
 Task procedures and checklists live in `.claude/skills/`. Invoke the matching skill before doing that kind of work.
 
+**Layout matters:** each skill is `.claude/skills/<name>/SKILL.md` — a directory containing `SKILL.md`, with `name:` and `description:` in the frontmatter. A flat `.claude/skills/<name>.md` is silently ignored: no error, the skill simply never registers. Verify with `find .claude/skills -name SKILL.md`, and confirm the names appear in the session's available-skills list.
+
 | Skill | Use it when |
 |---|---|
 | `/database` | Inspecting the schema or ER diagram, or changing a table/column (carries the full sync checklist) |
@@ -152,6 +154,20 @@ Task procedures and checklists live in `.claude/skills/`. Invoke the matching sk
 | `/component` | Adding or changing a component in `src/components/` |
 | `/test` | Writing or fixing backend tests, or working on coverage |
 | `/graphify` | Tracing callers, impact analysis before changing a shared symbol, or orienting in the codebase via the code graph |
+
+---
+
+## Subagents
+
+`.claude/agents/coder.md` defines **`coder`** (model: `sonnet`) — an implementer that writes one already-specified change. Launch several in a single message to fan out; they run concurrently.
+
+The orchestrator owns the decisions, so a `coder` prompt must be self-contained: these agents start with zero context and cannot see this conversation. State the goal, the exact file paths, and the acceptance criteria.
+
+**Partition by file, or work is lost.** Two agents editing one file clobber each other. `src/lib/db.ts` is the highest-collision file in the repo — assign it to at most one agent per batch.
+
+**Shared coordination files are the orchestrator's to edit, never a subagent's**, even when a skill checklist requires them: `AGENTS.md`, `CLAUDE.md`, `DESIGN.md`, `.claude/**`, `package.json`, `src/app/api/openapi.json/route.ts`, `src/app/design/page.tsx`, `src/app/overview/page.tsx`, `docs/er-diagram.md`, `public/mermaid.html`. Subagents report the needed edit under `NEEDS ORCHESTRATOR`; apply it once after the batch finishes.
+
+Subagents do not commit, push, or run `npm run db:reset`. Each verifies with `npx tsc --noEmit` **and** `npm test` before reporting, but a report states intent — read the actual diff before calling the work done.
 
 ---
 

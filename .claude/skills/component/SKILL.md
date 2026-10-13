@@ -1,4 +1,5 @@
 ---
+name: component
 description: Add or change a component in src/components/. Carries the server-vs-client decision, the colocated Storybook story format with play-function tests, and the checklist keeping DESIGN.md and the /design style-guide page in sync. Use whenever creating or modifying UI components.
 ---
 

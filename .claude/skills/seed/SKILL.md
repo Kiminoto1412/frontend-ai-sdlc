@@ -1,4 +1,5 @@
 ---
+name: seed
 description: Manage the Farmart SQLite seed data — inspect current DB state, reset and re-seed, or add new seed rows.
 ---
 
