@@ -14,6 +14,11 @@ export default defineConfig({
   use: {
     baseURL,
     trace: "retain-on-failure",
+    // "on", not "only-on-failure": every test attaches its final screenshot to
+    // the HTML report, so a passing run is reviewable too, not just a red one.
+    // Only tests that open a page produce one — the `request`-fixture API tests
+    // never render anything, so they have nothing to capture.
+    screenshot: "on",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
