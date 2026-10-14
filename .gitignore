@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# …but the template must ship: it documents JWT_SECRET, which production requires.
+!.env.example
 
 # vercel
 .vercel
@@ -47,3 +49,12 @@ next-env.d.ts
 
 *storybook.log
 storybook-static
+
+# graphify code-graph output (regenerate with: graphify extract . --code-only)
+/graphify-out/
+
+# playwright e2e output
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

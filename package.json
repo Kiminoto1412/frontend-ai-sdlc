@@ -6,12 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
+    "lint:fix": "eslint --fix",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "test": "vitest run --project unit",
     "test:watch": "vitest --project unit",
     "test:coverage": "vitest run --project unit --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "db:reset": "node --experimental-strip-types --no-warnings scripts/reset-db.ts"
   },
   "dependencies": {
@@ -26,7 +29,8 @@
     "swagger-ui-react": "^5.33.0"
   },
   "devDependencies": {
-    "@chromatic-com/storybook": "latest",
+    "@chromatic-com/storybook": "^5.3.1",
+    "@playwright/test": "^1.63.0",
     "@storybook/addon-a11y": "^10.6.0",
     "@storybook/addon-docs": "^10.6.0",
     "@storybook/addon-mcp": "^10.6.0",
@@ -39,16 +43,16 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/swagger-ui-react": "^5.18.0",
-    "@vitest/browser-playwright": "latest",
-    "@vitest/coverage-v8": "latest",
+    "@vitest/browser-playwright": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "eslint-plugin-storybook": "^10.6.0",
-    "playwright": "latest",
+    "playwright": "^1.63.0",
     "storybook": "^10.6.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vite": "latest",
-    "vitest": "latest"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   }
 }

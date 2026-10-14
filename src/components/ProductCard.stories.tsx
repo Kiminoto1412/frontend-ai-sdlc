@@ -5,6 +5,7 @@ import ProductCard, { type Product } from "./ProductCard";
 const meta = {
   component: ProductCard,
   tags: ["ai-generated"],
+  parameters: { nextjs: { appDirectory: true } },
 } satisfies Meta<typeof ProductCard>;
 
 export default meta;
@@ -72,5 +73,16 @@ export const CssCheck: Story = {
   play: async ({ canvas }) => {
     const price = canvas.getByText("$89.90");
     await expect(getComputedStyle(price).color).toBe("rgb(245, 166, 35)");
+  },
+};
+
+// Regression: the full-card link overlay must not paint over the CTA.
+export const ButtonAboveLinkOverlay: Story = {
+  args: { product: { ...discounted, id: "p1" } },
+  play: async ({ canvas }) => {
+    const button = canvas.getByRole("button", { name: /add to cart/i });
+    const r = button.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    await expect(hit).toBe(button);
   },
 };

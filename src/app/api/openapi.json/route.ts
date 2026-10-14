@@ -9,7 +9,7 @@ const spec = {
       "REST API backing the Farmart online grocery storefront. Covers products, categories, cart, wishlist, and authentication.",
     contact: {
       name: "Farmart Engineering",
-      email: "paruj.lab@bigc.co.th",
+      email: "dev@gmail.com",
     },
   },
   servers: [

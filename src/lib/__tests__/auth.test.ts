@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { signToken, verifyToken, extractToken } from "../auth";
 
 describe("signToken / verifyToken", () => {
@@ -61,5 +61,40 @@ describe("extractToken", () => {
       headers: { Authorization: "" },
     });
     expect(extractToken(req)).toBeNull();
+  });
+});
+
+describe("JWT secret resolution", () => {
+  const SECRET_A = "placeholder-secret-a-0123456789-abcdefghij";
+  const SECRET_B = "placeholder-secret-b-0123456789-abcdefghij";
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("throws naming JWT_SECRET in production when unset", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("JWT_SECRET", undefined);
+    await expect(signToken("user-1")).rejects.toThrow(/JWT_SECRET/);
+    await expect(verifyToken("a.b.c")).rejects.toThrow(/JWT_SECRET/);
+  });
+
+  it("rejects a secret shorter than 32 characters", async () => {
+    vi.stubEnv("JWT_SECRET", "too-short");
+    await expect(signToken("user-1")).rejects.toThrow(/32/);
+  });
+
+  it("round-trips with a valid secret", async () => {
+    vi.stubEnv("JWT_SECRET", SECRET_A);
+    const token = await signToken("user-rt");
+    expect((await verifyToken(token))?.userId).toBe("user-rt");
+  });
+
+  it("does not verify a token signed under a different secret", async () => {
+    vi.stubEnv("JWT_SECRET", SECRET_A);
+    const token = await signToken("user-x");
+    vi.stubEnv("JWT_SECRET", SECRET_B);
+    expect(await verifyToken(token)).toBeNull();
   });
 });

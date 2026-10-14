@@ -1,4 +1,5 @@
 ---
+name: database
 description: Show the Farmart database schema overview — ER diagram, table reference, column details, and constraints. Use whenever you need to understand the DB structure, check relationships before adding a feature, or verify that schema docs are up to date.
 ---
 
@@ -110,8 +111,8 @@ After making the schema change in `src/lib/db.ts`:
 
 1. **Update `docs/er-diagram.md`** — add the new table/column to the `erDiagram` block and the Tables summary.
 2. **Update `public/mermaid.html`** — find the `const diagram = \`erDiagram` string and apply the same additions so the live page at `/mermaid.html` stays in sync.
-3. **Update this skill file** (`.claude/skills/database.md`) — add the new table to the ER diagram block and Table Reference above.
-4. **Update `CLAUDE.md`** if the change affects architecture notes (e.g. a new auth table, a new session mechanism).
+3. **Update this skill file** (`.claude/skills/database/SKILL.md`) — add the new table to the ER diagram block and Table Reference above.
+4. **Update `AGENTS.md`** (the Backend section) if the change affects architecture notes — e.g. a new auth table or a new session mechanism. `CLAUDE.md` is only a pointer to `AGENTS.md`; never write rules into it.
 5. **Run `npm run db:reset`** then `npm run dev` so the new schema is applied to a fresh DB.
 
 ### "Check if the diagram is up to date"
@@ -134,5 +135,5 @@ When ANY table or column is added, removed, or renamed, update ALL of:
 - [ ] `src/lib/db.ts` — `seedIfEmpty()` if the new table needs seed rows
 - [ ] `docs/er-diagram.md` — erDiagram block + Tables table
 - [ ] `public/mermaid.html` — `const diagram` string
-- [ ] `.claude/skills/database.md` (this file) — ER diagram block + Table Reference
-- [ ] `CLAUDE.md` — Backend section if architecture changes
+- [ ] `.claude/skills/database/SKILL.md` (this file) — ER diagram block + Table Reference
+- [ ] `AGENTS.md` — Backend section if architecture changes
